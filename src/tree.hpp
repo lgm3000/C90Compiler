@@ -1,0 +1,1054 @@
+#ifndef TREE_HPP
+#define TREE_HPP
+
+#define T <<"\t"<<
+#define yolo ((right->type=="IDENTIFIER")||(right->type=="CONSTANT"))
+#include<vector>
+#include<string>
+#include<cstdlib>
+#include<iostream>
+#include<sstream>
+#include<map>
+using namespace std;
+class p_node;
+static map<string,int> variable;
+static map<string,string> vtipe;
+static map<string,string> vsign;
+static map<string,bool> vptr;
+static int tt;
+static int branch;
+static int curvar;
+static int maxvar;
+static bool reeturn;
+static stringstream strs;
+typedef p_node* nptr;
+
+int reassemble(nptr curptr);
+void s_r(nptr curptr,int tmpary);
+void shiftprint(string num);
+class p_node{
+public:
+	p_node():content("debug_empty"),type("LOL"),tipe("much tears"),pointa(false){}
+	p_node(string c){content = c;}
+	p_node(string t,string c){type = t;content = c;}
+	p_node(nptr l,nptr r){left = l;right = r;}
+
+	void add_child(nptr n){
+		if(n->type!="blank")
+			child.push_back(n);
+	}
+	virtual void traverse(const int& allocate) = 0;
+	nptr left = NULL;
+	nptr right =NULL;
+	vector<nptr> child;
+	string type;
+	string tipe;
+	string signda;
+	string content;
+	bool pointa;
+
+};
+
+
+class head_n: public p_node{
+public:
+	head_n(){};
+	void traverse(const int& allocate){
+		branch = 0;
+		curvar = 0;
+		maxvar = 0;
+		for(int i=0;i<child.size();i++)
+			child[i]->traverse(0);
+	cout << strs.str();
+	}
+
+};
+class type_n: public p_node{
+public:
+	type_n(string t,string u){tipe = t;signda = u;}
+	void traverse(const int& allocate){}
+};
+class func_n: public p_node{
+public:
+
+	void traverse(const int& allocate){
+		int allocat = 0;
+		reeturn = false;
+		s_r(right,0);
+		strs T ".globl" T content << endl;
+		strs T ".ent" T content << endl;
+		strs T ".type" T content << ", @function" << endl;
+		strs << content << ":" << endl;
+		strs T ".frame" T "$fp," << maxvar*4+12 <<",$31"<<endl;
+		strs T "addiu" T "$sp,$sp,-"<< maxvar*4+12 << endl;
+		strs T "sw" T "$fp,"<< maxvar*4 +8 <<"($sp)" << endl;
+		strs T "move" T "$fp,$sp"<< endl;
+		left->traverse(maxvar*4+12);
+		tt = 0;
+		right->traverse(maxvar*4+12);
+		if(reeturn == false){
+			strs T "move" T "$sp,$fp"<< endl;
+			strs T "lw" T "$fp,"<< maxvar*4+8 <<"($sp)\n";
+			strs T "addiu" T "$sp,$sp,"<< maxvar*4+12 << endl;
+			strs T "j" T "$31\n";
+			strs T "nop"<<"\n\n";
+		}
+		strs T ".end" T content<<endl;
+		strs T ".size" T content <<", .-" <<content <<"\n\n\n";
+		curvar = 0;
+		maxvar = 0;
+		variable.clear();
+		vtipe.clear();
+		vsign.clear();
+		vptr.clear();
+	}
+
+};
+
+class para_n: public p_node{
+public:
+	void traverse(const int& allocate){
+		for(int i=0;i<child.size();i++){
+			if(i<4)strs T "sw" T "$"<<i+4<<","<< allocate +i*4 <<"($fp)" << endl;
+			variable[child[i]->content] = allocate + i*4;
+		}
+	}
+
+};
+class vard_n: public p_node{
+public:
+	void traverse(const int& allocate){
+		for(int i=0;i<child.size();i++) 
+			{variable[child[i]->content] = curvar*4+8;
+			vtipe[child[i]->content] = child[i]->tipe;
+			vsign[child[i]->content] = child[i]->signda;
+			vptr[child[i]->content]  = child[i]->pointa;
+			curvar+=(child[i]->type == "IDENTIFIER")?(1):((child[i]->left->type=="CONSTANT")?atoi(child[i]->left->content.c_str()):10);
+		}
+
+	}
+};
+
+class line_n: public p_node{
+public:
+	void traverse(const int& allocate){
+		for(int i=0;i<child.size();i++){
+			child[i]->traverse(0);
+		}
+	}
+
+};
+class isco_n: public p_node{
+public:
+	isco_n(){content = "isco";}
+	void traverse(const int& allocate){
+		/*boom*/if(left!=NULL) 	left->traverse(allocate);
+		/*boom*/if(right!=NULL)	right->traverse(allocate);
+		if(left!=NULL)curvar-=left->child.size();
+	}
+
+};
+class ifelse_n: public p_node{
+public:
+	ifelse_n(nptr con,nptr ifa,nptr elsa){child.push_back(con);left = ifa;right = elsa;}
+	void traverse(const int& allocate){
+		if(child[0]->type =="CONSTANT")
+			if(atoi(child[0]->content.c_str())) left->traverse(0);
+			else right->traverse(0);
+		else{
+			child[0]->traverse(0);
+			int tmpb = branch;
+			branch+=2;
+			strs T "beq" T "$2,$0,$L" << tmpb << endl;
+			strs T "nop\n";
+			left->traverse(allocate);
+			strs T "b"   T "$L"<< tmpb+1 <<endl;
+			strs T "nop\n";
+			strs <<"$L" << tmpb <<":\n";
+			right->traverse(allocate);	
+			strs <<"$L" << tmpb+1 <<":\n";
+		}
+	}
+
+};
+class if_n: public p_node{
+public:
+	if_n(nptr con,nptr ifa){child.push_back(con);left = ifa;}
+	void traverse(const int& allocate){
+		if(child[0]->type =="CONSTANT")
+			{if(atoi(child[0]->content.c_str())) left->traverse(0);}
+		else{
+			child[0]->traverse(0);
+			int tmpb = branch;
+			branch++;
+			strs T "beq" T "$2,$0,$L" << tmpb << endl;
+			strs T "nop\n";
+			left->traverse(allocate);
+			strs <<"$L" << tmpb <<":\n";
+		}
+	}
+};
+class for_n: public p_node{
+public:
+	for_n(nptr init,nptr con,nptr end,nptr ifa){child.push_back(con);child.push_back(init);left = ifa;right = end;}
+	void traverse(const int& allocate){
+		if(child[1] != NULL) child[1]->traverse(0);
+		if(child[0]->type =="CONSTANT")
+			{if(atoi(child[0]->content.c_str())){
+			int tmpb = branch;
+			branch++;
+			strs <<"$L" << tmpb<<":\n";
+			left->traverse(0);
+			if(right!=NULL) right->traverse(0);
+			strs T "b"   T "$L"<< tmpb <<endl;
+			strs T "nop\n";
+			}}
+		else{
+			int tmpb = branch;
+			branch+=2;
+			strs <<"$L" << tmpb<<":\n";
+			child[0]->traverse(0);
+			strs T "beq" T "$2,$0,$L" << tmpb + 1 << endl;
+			strs T "nop\n";
+			left->traverse(allocate);
+			if(right!=NULL) right->traverse(0);
+			strs T "b"   T "$L"<< tmpb <<endl;
+			strs <<"$L" << tmpb+1 <<":\n";
+		}
+	}
+
+};
+class while_n: public p_node{
+public:
+	while_n(nptr con,nptr ifa){child.push_back(con);left = ifa;}
+	void traverse(const int& allocate){
+		if(child[0]->type =="CONSTANT")
+			{if(atoi(child[0]->content.c_str())){
+			int tmpb = branch;
+			branch++;
+			strs <<"$L" << tmpb<<":\n";
+			left->traverse(0);
+			strs T "b"   T "$L"<< tmpb <<endl;
+			strs T "nop\n";
+			}}
+		else{
+			int tmpb = branch;
+			branch+=2;
+			strs <<"$L" << tmpb<<":\n";
+			child[0]->traverse(0);
+			strs T "beq" T "$2,$0,$L" << tmpb + 1 << endl;
+			strs T "nop\n";
+			left->traverse(allocate);
+			strs T "b"   T "$L"<< tmpb <<endl;
+			strs <<"$L" << tmpb+1 <<":\n";
+		}
+	}
+
+};
+class retn_n: public p_node{
+public:
+	void traverse(const int& allocate){
+		child[0]->traverse(0);
+		reeturn = true;
+		strs T "move" T "$sp,$fp"<< endl;
+		strs T "lw" T "$fp,"<< maxvar*4+8 <<"($sp)\n";
+		strs T "addiu" T "$sp,$sp,"<< maxvar*4+12 << endl;
+		strs T "j" T "$31\n";
+		strs T "nop"<<"\n\n";
+	}
+};
+class asgn_n: public p_node{
+public:
+	asgn_n(string c){content = c;}
+	void traverse(const int& allocate){
+		if (left->type == "IDENTIFIER") {
+		right->traverse(0);
+		if(content == "=")
+			strs T "sw" T "$"<< 2 << "," << variable[left->content] << "($fp)" << endl;
+		else
+		if(content == "+="){
+			strs T "lw" T "$"<< 3 << "," << variable[left->content] << "($fp)" << endl;
+			strs T "addu" T "$2,$2,$3\n";
+			strs T "sw" T "$"<< 2 << "," << variable[left->content] << "($fp)" << endl;
+		}
+		else
+		if(content == "-="){
+			strs T "lw" T "$"<< 3 << "," << variable[left->content] << "($fp)" << endl;
+			strs T "subu" T "$2,$3,$2\n";
+			strs T "sw" T "$"<< 2 << "," << variable[left->content] << "($fp)" << endl;
+		}
+		else
+		if(content == "*="){
+			strs T "lw" T "$"<< 3 << "," << variable[left->content] << "($fp)" << endl;
+			strs T "mul" T "$2,$2,$3\n";
+			strs T "sw" T "$"<< 2 << "," << variable[left->content] << "($fp)" << endl;
+		}
+		else
+		if(content == "/="){
+			strs T "lw" T "$"<< 3 << "," << variable[left->content] << "($fp)" << endl;
+			strs T "div" T "$0,$3,$2\n";
+			strs T "mflo" T "$2\n";
+			strs T "sw" T "$"<< 2 << "," << variable[left->content] << "($fp)" << endl;
+		}
+		else
+		if(content == "%="){
+			strs T "lw" T "$"<< 3 << "," << variable[left->content] << "($fp)" << endl;
+			strs T "div" T "$0,$3,$2\n";
+			strs T "mflo" T "$2\n";
+			strs T "sw" T "$"<< 2 << "," << variable[left->content] << "($fp)" << endl;
+		}
+		else
+		if(content == ">>="){
+			strs T "lw" T "$"<< 3 << "," << variable[left->content] << "($fp)" << endl;
+			if(vsign[left->content] == "signed")
+				strs T "sra" T "$2,$3,$2\n";
+			else
+				strs T "srl" T "$2,$3,$2\n";
+			strs T "sw" T "$"<< 2 << "," << variable[left->content] << "($fp)" << endl;
+		}
+		else
+		if(content == "<<="){
+			strs T "lw" T "$"<< 3 << "," << variable[left->content] << "($fp)" << endl;
+			strs T "sll" T "$2,$3,$2\n";
+			strs T "sw" T "$"<< 2 << "," << variable[left->content] << "($fp)" << endl;
+		}
+		else
+		if(content == "&="){
+			strs T "lw" T "$"<< 3 << "," << variable[left->content] << "($fp)" << endl;
+			strs T "and" T "$2,$3,$2\n";
+			strs T "sw" T "$"<< 2 << "," << variable[left->content] << "($fp)" << endl;
+		}
+		else
+		if(content == "|="){
+			strs T "lw" T "$"<< 3 << "," << variable[left->content] << "($fp)" << endl;
+			strs T "or" T "$2,$3,$2\n";
+			strs T "sw" T "$"<< 2 << "," << variable[left->content] << "($fp)" << endl;
+		}
+		else
+		if(content == "^="){
+			strs T "lw" T "$"<< 3 << "," << variable[left->content] << "($fp)" << endl;
+			strs T "xor" T "$2,$3,$2\n";
+			strs T "sw" T "$"<< 2 << "," << variable[left->content] << "($fp)" << endl;
+		}
+		}
+		else
+		if(left->type == "array"){
+		right->traverse(0);
+		strs T "move" T "$"<<4+tt<<",$2\n";
+		tt++;
+		left->traverse(1);
+		tt--;
+		if(content == "=")
+			strs T "sw" T "$"<<4+tt<<","<<variable[left->content] << "($2)\n";
+		else
+		if(content == "+="){
+			strs T "addu" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$3," << variable[left->content] << "($2)" << endl;
+		}
+		else
+		if(content == "-="){
+			strs T "subu" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << "," << variable[left->content] << "($2)" << endl;
+		}
+		else
+		if(content == "*="){
+			strs T "mul" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << "," << variable[left->content] << "($2)" << endl;
+		}
+		else
+		if(content == "/="){
+			strs T "div" T "$0,$3,$"<<4+tt<<"\n";
+			strs T "mflo" T "$3\n";
+			strs T "sw" T "$"<< 3 << "," << variable[left->content] << "($2)" << endl;
+		}
+		else
+		if(content == "%="){
+			strs T "div" T "$0,$3,$"<<4+tt<<"\n";
+			strs T "mflo" T "$3\n";
+			strs T "sw" T "$"<< 3 << "," << variable[left->content] << "($2)" << endl;
+		}
+		else
+		if(content == ">>="){
+			if(vsign[left->content] == "signed")
+				strs T "sra" T "$3,$3,$"<<4+tt<<"\n";
+			else
+				strs T "srl" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << "," << variable[left->content] << "($2)" << endl;
+		}
+		else
+		if(content == "<<="){
+			strs T "sll" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << "," << variable[left->content] << "($2)" << endl;
+		}
+		else
+		if(content == "&="){
+			strs T "and" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << "," << variable[left->content] << "($2)" << endl;
+		}
+		else
+		if(content == "|="){
+			strs T "or" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << "," << variable[left->content] << "($2)" << endl;
+		}
+		else
+		if(content == "^="){
+			strs T "xor" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << "," << variable[left->content] << "($2)" << endl;
+		}
+		}
+		else if(left->type == "pointer"){
+		right->traverse(0);
+		strs T "move" T "$"<<4+tt<<",$2\n";
+		tt++;
+		left->traverse(1);
+		tt--;
+		if(content == "=")
+			strs T "sw" T "$"<<4+tt<<","<<variable[left->content] << "($2)\n";
+		else
+		if(content == "+="){
+			strs T "addu" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$3,0($2)" << endl;
+		}
+		else
+		if(content == "-="){
+			strs T "subu" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << ",0($2)" << endl;
+		}
+		else
+		if(content == "*="){
+			strs T "mul" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << ",0($2)" << endl;
+		}
+		else
+		if(content == "/="){
+			strs T "div" T "$0,$3,$"<<4+tt<<"\n";
+			strs T "mflo" T "$3\n";
+			strs T "sw" T "$"<< 3 << ",0($2)" << endl;
+		}
+		else
+		if(content == "%="){
+			strs T "div" T "$0,$3,$"<<4+tt<<"\n";
+			strs T "mflo" T "$3\n";
+			strs T "sw" T "$"<< 3 << ",0($2)" << endl;
+		}
+		else
+		if(content == ">>="){
+			if(vsign[left->content] == "signed")
+				strs T "sra" T "$3,$3,$"<<4+tt<<"\n";
+			else
+				strs T "srl" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << ",0($2)" << endl;
+		}
+		else
+		if(content == "<<="){
+			strs T "sll" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << ",0($2)" << endl;
+		}
+		else
+		if(content == "&="){
+			strs T "and" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << ",0($2)" << endl;
+		}
+		else
+		if(content == "|="){
+			strs T "or" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << ",0($2)" << endl;
+		}
+		else
+		if(content == "^="){
+			strs T "xor" T "$3,$3,$"<<4+tt<<"\n";
+			strs T "sw" T "$"<< 3 << ",0($2)" << endl;
+		}
+		}
+
+	}
+
+};
+
+class ternexpr_n: public p_node{
+public:
+	ternexpr_n(nptr con,nptr l,nptr r){child.push_back(con);left = l;right = r;type = "0";}
+	void traverse(const int& allocate){
+		if(child[0]->type =="CONSTANT")
+			if(atoi(child[0]->content.c_str())) left->traverse(0);
+			else right->traverse(0);
+		else{
+			child[0]->traverse(0);
+			int tmpb = branch;
+			branch+=3;
+			strs T "bne" T "$2,$0,$L" << tmpb << endl;
+			strs T "b"   T "$L"<< tmpb+1 <<endl;
+			strs T "nop\n";
+			strs <<"$L" << tmpb <<":\n";
+			left->traverse(allocate);
+			strs T "b"   T "$L"<< tmpb+2 <<endl;
+			strs T "nop\n";
+			strs <<"$L" << tmpb+1 <<":\n";
+			right->traverse(allocate);	
+			strs T "b"   T "$L"<< tmpb+2 <<endl;		
+			strs T "nop\n";
+			strs <<"$L" << tmpb+2 <<":\n";
+		}
+	}
+};
+
+class ororexpr_n: public p_node{
+public:
+	ororexpr_n(nptr l,nptr r){left = l;right = r;type = "1";}
+	void traverse(const int& allocate){
+		if(right->type =="CONSTANT")
+			if(atoi(right->content.c_str()))
+				strs T "li" T "$" << 2+allocate <<",1\n";
+			else{
+				left->traverse(0);
+				strs T "stl" T "$" << 2+allocate <<"$0,$2\n";
+			}
+		else if(left->type =="CONSTANT")
+			if(atoi(left->content.c_str()))
+				strs T "li" T "$" << 2+allocate <<",1\n";
+			else{
+				right->traverse(0);
+				strs T "stl" T "$" << 2+allocate <<"$0,$2\n";
+			}
+		else{
+			int tmpb = branch;
+			branch+=2;
+			left->traverse(0);
+			strs T "bne" T "$0,$2,$L"<<tmpb<<endl;
+			strs T "nop\n";
+			right->traverse(1);
+			strs T "stl" T "$" << 2+allocate <<"$0,$3\n";
+			strs T "b"   T "$L"<< tmpb+1 <<endl;				
+			strs <<"$L" << tmpb <<":\n";
+			strs T "move" T "$" << 2+allocate << "$1\n";
+			strs <<"$L" << tmpb+1 <<":\n";
+			}
+	}
+};
+class andandexpr_n: public p_node{
+public:
+	andandexpr_n(nptr l,nptr r){left = l;right = r;type = "2";}
+	void traverse(const int& allocate){
+		if(right->type =="CONSTANT")
+			if(atoi(right->content.c_str())){
+				left->traverse(0);
+				strs T "stl" T "$" << 2+allocate <<"$0,$2\n";
+			}
+			else
+				strs T "move" T "$" << 2+allocate << "$0\n";
+		else if(left->type =="CONSTANT")
+			if(atoi(left->content.c_str())){
+				right->traverse(0);
+				strs T "stl" T "$" << 2+allocate <<"$0,$2\n";
+			}
+			else
+				strs T "move" T "$" << 2+allocate << "$0\n";
+		else{
+			int tmpb = branch;
+			branch+=2;
+			left->traverse(0);
+			strs T "beq" T "$0,$2,$L"<<tmpb<<endl;
+			strs T "nop\n";
+			right->traverse(1);
+			strs T "stl" T "$" << 2+allocate <<"$0,$3\n";
+			strs T "b"   T "$L"<< tmpb+1 <<endl;				
+			strs <<"$L" << tmpb <<":\n";
+			strs T "move" T "$" << 2+allocate << "$0\n";
+			strs <<"$L" << tmpb+1 <<":\n";
+			}
+	}
+};
+class orexpr_n: public p_node{
+public:
+	orexpr_n(nptr l,nptr r){left = l;right = r;type = "3";}
+	void traverse(const int& allocate){
+		if(right->type =="CONSTANT"){
+			left->traverse(0);
+			strs T "ori" T "$" << 2+allocate <<",$2,"<<right->content<<endl;
+		}
+		else if(left->type == "CONSTANT"){
+			right->traverse(1);
+			strs T "ori" T "$" << 2+allocate <<",$3,"<<left->content<<endl;
+		}else{
+			left->traverse(0);
+			if(yolo){
+			right->traverse(1);
+			strs T "or" T "$" << 2+allocate <<",$2,$3\n";
+			}
+			else{
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "or" T "$" << 2+allocate <<",$"<<4+tt<<",$3\n";
+			}
+		}
+	}
+};
+class xorexpr_n: public p_node{
+public:
+	xorexpr_n(nptr l,nptr r){left = l;right = r;type = "4";}
+	void traverse(const int& allocate){
+		if(right->type =="CONSTANT"){
+			left->traverse(0);
+			strs T "xori" T "$" << 2+allocate <<",$2,"<<right->content<<endl;
+		}
+		else if(left->type == "CONSTANT"){
+			right->traverse(1);
+			strs T "xori" T "$" << 2+allocate <<",$3,"<<left->content<<endl;
+		}else{
+			left->traverse(0);
+			if(yolo){
+			right->traverse(1);
+			strs T "xor" T "$" << 2+allocate <<",$2,$3\n";
+			}
+			else{
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "xor" T "$" << 2+allocate <<",$"<<4+tt<<",$3\n";
+			}
+		}
+	}
+};
+class andexpr_n: public p_node{
+public:
+	andexpr_n(nptr l,nptr r){left = l;right = r;type = "5";}
+	void traverse(const int& allocate){
+		if(right->type =="CONSTANT"){
+			left->traverse(0);
+			strs T "andi" T "$" << 2+allocate <<",$2,"<<right->content<<endl;
+		}
+		else if(left->type == "CONSTANT"){
+			right->traverse(1);
+			strs T "andi" T "$" << 2+allocate <<",$3,"<<left->content<<endl;
+		}else{
+			left->traverse(0);
+			if(yolo){
+			right->traverse(1);
+			strs T "and" T "$" << 2+allocate <<",$2,$3\n";
+			}
+			else{
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "and" T "$" << 2+allocate <<",$"<<4+tt<<",$3\n";
+			}
+		}
+	}
+};
+class neqexpr_n: public p_node{
+public:
+	neqexpr_n(nptr l,nptr r){left = l;right = r;type = "6";}
+	void traverse(const int& allocate){
+		if(left ->type == "CONSTANT" && right->type == "CONSTANT") 
+			strs T "li" T "$"<<2+allocate<<"," << (atoi(left->content.c_str()) != atoi(right->content.c_str())) << endl;
+		else{
+			left->traverse(0);
+			if(yolo){
+			right->traverse(1);
+			strs T "xor" T "$"<<2+allocate<<",$2,$3\n";
+			strs T "sltu" T "$" << 2+allocate<<",$0,$" << 2+allocate<<endl;
+			strs T "andi" T "$" << 2+allocate<<",$" << 2+allocate<<",0x00ff\n";
+			}
+			else{
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "xor" T "$"<<2+allocate<<",$"<<4+tt<<",$3\n";
+			strs T "sltu" T "$" << 2+allocate<<",$0,$" << 2+allocate<<endl;
+			strs T "andi" T "$" << 2+allocate<<",$" << 2+allocate<<",0x00ff\n";
+			}
+		}
+	}
+};
+class eqeqexpr_n: public p_node{
+public:
+	eqeqexpr_n(nptr l,nptr r){left = l;right = r;type = "6";}
+	void traverse(const int& allocate){
+		if(left ->type == "CONSTANT" && right->type == "CONSTANT") 
+			strs T "li" T "$"<<2+allocate<<"," << (atoi(left->content.c_str()) == atoi(right->content.c_str())) << endl;
+		else{
+			left->traverse(0);
+			if(yolo){
+			right->traverse(1);
+			strs T "xor" T "$"<<2+allocate<<",$2,$3\n";
+			strs T "sltiu" T "$" << 2+allocate<<",$" << 2+allocate<<",1\n";
+			strs T "andi" T "$" << 2+allocate<<",$" << 2+allocate<<",0x00ff\n";
+			}
+			else{
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "xor" T "$"<<2+allocate<<",$"<<4+tt<<",$3\n";
+			strs T "sltiu" T "$" << 2+allocate<<",$" << 2+allocate<<",1\n";
+			strs T "andi" T "$" << 2+allocate<<",$" << 2+allocate<<",0x00ff\n";
+			}
+		}
+	}
+};
+class lessexpr_n: public p_node{
+public:
+	lessexpr_n(nptr l,nptr r){left = l;right = r;type = "7";}
+	void traverse(const int& allocate){
+		if(left ->type == "CONSTANT" && right->type == "CONSTANT") 
+			strs T "li" T "$"<<2+allocate<<"," << (atoi(left->content.c_str()) < atoi(right->content.c_str())) << endl;
+		else{
+			left->traverse(0);
+			if(yolo){
+			right->traverse(1);
+			strs T "slt" T "$" << 2+allocate<<",$2,$3\n";
+			strs T "andi" T "$" << 2+allocate<<",$" << 2+allocate<<",0x00ff\n";
+			}
+			else{
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "slt" T "$" << 2+allocate<<",$" << 4+tt<<",$3\n";
+			strs T "andi" T "$" << 2+allocate<<",$" << 2+allocate<<",0x00ff\n";
+			}
+		}
+	}
+};
+class grtexpr_n: public p_node{
+public:
+	grtexpr_n(nptr l,nptr r){left = l;right = r;type = "7";}
+	void traverse(const int& allocate){
+		if(left ->type == "CONSTANT" && right->type == "CONSTANT") 
+			strs T "li" T "$"<<2+allocate<<"," << (atoi(left->content.c_str()) > atoi(right->content.c_str())) << endl;
+		else{
+			left->traverse(0);
+			if(yolo){
+			right->traverse(1);
+			strs T "slt" T "$" << 2+allocate<<",$3,$2\n";
+			strs T "andi" T "$" << 2+allocate<<",$" << 2+allocate<<",0x00ff\n";
+			}
+			else{
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "slt" T "$" << 2+allocate<<",$3,$" << 4+tt<<endl;
+			strs T "andi" T "$" << 2+allocate<<",$" << 2+allocate<<",0x00ff\n";
+			}
+		}
+	}
+};
+class lesseqexpr_n: public p_node{
+public:
+	lesseqexpr_n(nptr l,nptr r){left = l;right = r;type = "7";}
+	void traverse(const int& allocate){
+		if(left ->type == "CONSTANT" && right->type == "CONSTANT") 
+			strs T "li" T "$"<<2+allocate<<"," << (atoi(left->content.c_str()) <= atoi(right->content.c_str())) << endl;
+		else{
+			left->traverse(0);
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "xor" T "$2,$" << 4+tt<<",$3\n";
+			strs T "sltiu" T "$2,$2,1\n";
+			strs T "slt" T "$3,$" << 4+tt<<",$3\n";
+			strs T "or" T "$"<<2+allocate<<",$2,$3"<<endl;
+			strs T "andi" T "$" << 2+allocate<<",$" << 2+allocate<<",0x00ff\n";
+		}
+	}
+};
+class grteqexpr_n: public p_node{
+public:
+	grteqexpr_n(nptr l,nptr r){left = l;right = r;type = "7";}
+	void traverse(const int& allocate){
+		if(left ->type == "CONSTANT" && right->type == "CONSTANT") 
+			strs T "li" T "$"<<2+allocate<<"," << (atoi(left->content.c_str()) >= atoi(right->content.c_str())) << endl;
+		else{
+			left->traverse(0);
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "xor" T "$2,$" << 4+tt<<",$3\n";
+			strs T "sltiu" T "$2,$2,1\n";
+			strs T "slt" T "$3,$3,$" << 4+tt<<endl;
+			strs T "or" T "$"<<2+allocate<<",$2,$3\n";
+			strs T "andi" T "$" << 2+allocate<<",$" << 2+allocate<<",0x00ff\n";
+		}
+	}
+};
+class lsl_n: public p_node{
+public:
+	lsl_n(nptr l,nptr r){left = l;right = r;type = "8";}
+	void traverse(const int& allocate){
+		if(left ->type == "CONSTANT" && right->type == "CONSTANT") 
+			strs T "li" T "$"<<2+allocate<<"," << (atoi(left->content.c_str()) << atoi(right->content.c_str())) << endl;
+		else{
+			left->traverse(0);
+			if(yolo){
+				right->traverse(1);
+				strs T "sll" T "$" << 2+allocate<<",$2,$3\n";
+			}
+			else{
+				strs T "move" T "$" << 4+tt <<",$2\n";
+				tt++;
+				right->traverse(1);
+				tt--;
+				strs T "sll" T "$" << 2+allocate<<",$" << 4+tt<<",$3\n";
+			}
+		}
+	}
+};
+class lsr_n: public p_node{
+public:
+	lsr_n(nptr l,nptr r){left = l;right = r;type = "8";}
+	void traverse(const int& allocate){
+		if(left ->type == "CONSTANT" && right->type == "CONSTANT") 
+			strs T "li" T "$"<<2+allocate<<"," << (atoi(left->content.c_str()) >> atoi(right->content.c_str())) << endl;
+		else{
+			left->traverse(0);
+			if(yolo){
+				right->traverse(1);
+				strs T "sra" T "$" << 2+allocate<<",$2,$3\n";
+			}
+			else{
+				strs T "move" T "$" << 4+tt <<",$2\n";
+				tt++;
+				right->traverse(1);
+				tt--;
+				strs T "sra" T "$" << 2+allocate<<",$" << 4+tt<<",$3\n";
+			}
+		}
+	}
+};
+class addexpr_n: public p_node{
+public:
+	addexpr_n(nptr l,nptr r){left = l;right = r;type = "9";}
+	void traverse(const int& allocate){
+		if(right->type =="CONSTANT"){
+			left->traverse(0);
+			strs T "addi" T "$" << 2+allocate <<",$2,"<<right->content<<endl;
+		}
+		else if(left->type == "CONSTANT"){
+			right->traverse(1);
+			strs T "addi" T "$" << 2+allocate <<",$3,"<<left->content<<endl;
+		}else{
+			left->traverse(0);
+			if(yolo){
+			right->traverse(1);
+			strs T "addu" T "$" << 2+allocate <<",$2,$3\n";
+			}
+			else{
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "addu" T "$" << 2+allocate <<",$"<<4+tt<<",$3\n";
+			}
+		}
+	}
+};
+class subexpr_n: public p_node{
+public:
+	subexpr_n(nptr l,nptr r){left = l;right = r;type ="9";}
+	void traverse(const int& allocate){
+		if(right->type =="CONSTANT"){
+			left->traverse(0);
+			strs T "addiu" T "$"<< 2+allocate <<",$2,-"<<right->content<<endl;
+		}
+		else{
+			left->traverse(0);
+			if(yolo){
+			right->traverse(1);
+			strs T "subu" T "$"<< 2+allocate <<",$2,$3\n";
+			}
+			else{
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "subu" T "$" << 2+allocate <<",$"<<4+tt<<",$3\n";
+			}
+			
+		}
+	}
+};
+class multexpr_n: public p_node{
+public:
+	multexpr_n(nptr l,nptr r){left = l;right = r;type = "10";}
+	void traverse(const int& allocate){
+		if(left ->type == "CONSTANT" && right->type == "CONSTANT") 
+			strs T "li" T "$"<<2+allocate<<"," << atoi(left->content.c_str()) * atoi(right->content.c_str()) << endl;
+		else{
+			left->traverse(0);
+			if(yolo){
+			right->traverse(1);
+			strs T "mul" T "$" << 2+allocate <<",$2,$3\n";
+			}
+			else{
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "mul" T "$" << 2+allocate <<",$"<<4+tt<<",$3\n";
+			}
+		}
+	}
+};
+class divexpr_n: public p_node{
+public:
+	divexpr_n(nptr l,nptr r){left = l;right = r;type = "10";}
+	void traverse(const int& allocate){
+		if(left ->type == "CONSTANT" && right->type == "CONSTANT") 
+			strs T "li" T "$"<<2+allocate<<"," << int(atoi(left->content.c_str()) / atoi(right->content.c_str())) << endl;
+		else{
+			left->traverse(0);
+			if(yolo){
+			right->traverse(1);
+			strs T "div" T "$0,$2,$3\n";
+			strs T "mflo" T "$" << 2+allocate<<endl;
+			}
+			else{
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "div" T "$0,$"<<4+tt<<",$3\n";
+			strs T "mflo" T "$" << 2+allocate<<endl;
+			}
+		}
+	}
+};
+class modexpr_n: public p_node{
+public:
+	modexpr_n(nptr l,nptr r){left = l;right = r;type = "10";}
+	void traverse(const int& allocate){
+		if(left ->type == "CONSTANT" && right->type == "CONSTANT") 
+			strs T "li" T "$"<<2+allocate<<"," << int(atoi(left->content.c_str()) % atoi(right->content.c_str())) << endl;
+		else{
+			left->traverse(0);
+			strs T "teq" T "$2,$0,7";
+			if(yolo){
+			right->traverse(1);
+			strs T "div" T "$0,$2,$3\n";
+			strs T "mfhi" T "$" << 2+allocate<<endl;
+			}
+			else{
+			strs T "move" T "$" << 4+tt <<",$2\n";
+			tt++;
+			right->traverse(1);
+			tt--;
+			strs T "div" T "$0,$"<<4+tt<<",$3\n";
+			strs T "mfhi" T "$" << 2+allocate<<endl;
+			}
+		}
+	}
+};
+class negexpr_n: public p_node{
+public:
+	negexpr_n(nptr c){left = c;}
+	void traverse(const int& allocate){
+		left->traverse(allocate);
+		strs T "subu" T "$"<< 2 + allocate << ",$0,$" << 2+allocate << endl;
+	}
+};
+class ppi_n: public p_node{
+public:
+	ppi_n(string c){content = c;}
+	void traverse(const int& allocate){
+		strs T "lw" T "$"<< 2 + allocate << "," << variable[content] << "($fp)\n";
+		strs T "addiu" T "$"<< 2 + allocate << ",$2,1\n";
+		strs T "sw" T "$"<< 2 + allocate << "," << variable[content] << "($fp)\n";
+	}
+};
+class mmi_n: public p_node{
+public:
+	mmi_n(string c){content = c;}
+	void traverse(const int& allocate){
+		strs T "lw" T "$"<< 2 + allocate << "," << variable[content] << "($fp)\n";
+		strs T "addiu" T "$"<< 2 + allocate << ",$2,-1\n";
+		strs T "sw" T "$"<< 2 + allocate << "," << variable[content] << "($fp)\n";
+	}
+};
+class ipp_n: public p_node{
+public:
+	ipp_n(string c){content = c;}
+	void traverse(const int& allocate){
+		strs T "lw" T "$"<< 2 + allocate << "," << variable[content] << "($fp)\n";
+		strs T "addiu" T "$"<< 2 + allocate << ",$2,1\n";
+		strs T "sw" T "$"<< 2 + allocate << "," << variable[content] << "($fp)\n";
+		strs T "addiu" T "$"<< 2 + allocate << ",$2,-1\n";
+	}
+};
+class imm_n: public p_node{
+public:
+	imm_n(string c){content = c;}
+	void traverse(const int& allocate){
+		strs T "lw" T "$"<< 2 + allocate << "," << variable[content] << "($fp)\n";
+		strs T "addiu" T "$"<< 2 + allocate << ",$2,-1\n";
+		strs T "sw" T "$"<< 2 + allocate << "," << variable[content] << "($fp)\n";
+		strs T "addiu" T "$"<< 2 + allocate << ",$2,1\n";
+	}
+};
+class punc_n: public p_node{
+public:
+	punc_n(nptr c){left = c;}
+	void traverse(const int& allocate){
+		left->traverse(0);
+		strs T "sltu" T "$"<< 2 + allocate << ",$2,1\n";
+		strs T "andi" T "$"<< 2 + allocate << ",$" << 2+allocate<<",0x00ff\n";
+	}
+};
+class not_n: public p_node{
+public:
+	not_n(nptr c){left = c;}
+	void traverse(const int& allocate){
+		left->traverse(0);
+		strs T "nor" T "$"<< 2 + allocate << ",$0,$2\n";
+	}
+};
+
+class low_n: public p_node{
+public:
+	low_n(string t,string c){type = t;content = c;}
+	void traverse(const int& allocate){
+		if(type == "IDENTIFIER") strs T "lw" T "$"<< 2 + allocate << "," << variable[content] << "($fp)\n";
+		else strs T "li" T "$"<< 2 + allocate << "," << content  << endl;
+	}
+};
+
+class ptrv_n: public p_node{
+public:
+	ptrv_n(string c){content = c;type = "pointer";}
+	void traverse(const int& allocate){
+		strs T "lw" T "$"<< 3 - allocate << "," << variable[content] << "($fp)\n";
+		strs T "lw" T "$" << 2+allocate <<",0($"<<3-allocate<<")\n";
+	}
+};
+class adrv_n: public p_node{
+public:
+	adrv_n(string c){content = c;type = "addrer";}
+	void traverse(const int& allocate){
+		strs T "addiu" T "$"<< 2+allocate << ",$fp," << variable[content] <<endl;
+	}
+};
+class aray_n: public p_node{
+public:
+	aray_n(string c,nptr index){content = c;left = index;type = "array";}
+	void traverse(const int& allocate){
+		left->traverse(0);
+		strs T "sll" T "$2,$2,2\n";
+		strs T "addu" T "$"<<3-allocate <<",$2,$fp\n";
+		strs T "lw" T "$" << 2+allocate <<","<< variable[content]  << "($"<<3-allocate<<")\n";
+	}
+};
+class blank_n:public p_node{
+public:
+	blank_n(){type = "blank";}
+	void traverse(const int& allocate){}
+};
+
+
+#endif

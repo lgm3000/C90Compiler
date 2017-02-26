@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cat a.txt | bin/c_codegen > m.s

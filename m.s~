@@ -1,0 +1,42 @@
+	.globl	g
+	.ent	g
+	.type	g, @function
+g:
+	.frame	$fp,12,$31
+	addiu	$sp,$sp,-12
+	sw	$fp,8($sp)
+	move	$fp,$sp
+	sw	$4,12($fp)
+	li	$2,5
+	addi	$2,$2,6
+	move	$sp,$fp
+	lw	$fp,8($sp)
+	addiu	$sp,$sp,12
+	j	$31
+	nop
+
+	.end	g
+	.size	g, .-g
+
+
+	.globl	f
+	.ent	f
+	.type	f, @function
+f:
+	.frame	$fp,12,$31
+	addiu	$sp,$sp,-12
+	sw	$fp,8($sp)
+	move	$fp,$sp
+	sw	$4,12($fp)
+	li	$2,3
+	addi	$2,$2,5
+	move	$sp,$fp
+	lw	$fp,8($sp)
+	addiu	$sp,$sp,12
+	j	$31
+	nop
+
+	.end	f
+	.size	f, .-f
+
+

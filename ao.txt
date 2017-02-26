@@ -1,0 +1,38 @@
+	globl	main
+	.ent	main
+	.type	main, @function
+main:
+	.frame	$fp,16,$31
+	addiu	$sp,$sp,-16
+	sw	$fp,12($sp)
+	move	$fp,$sp
+	sw	$4,16($fp)
+	sw	$5,20($fp)
+	li	$2,180
+	sw	$2,16($fp)
+	li	$2,3
+	sw	$2,8($fp)
+	li	$2,30
+	sw	$2,8($fp)
+	li	$2,6
+	lw	$3,8($fp)
+	mul	$2,$2,$3
+	sw	$2,20($fp)
+	lw	$3,8($fp)
+	addiu	$2,$3,10
+	mov	$4,$2
+	lw	$2,20($fp)
+	lw	$3,16($fp)
+	div	$0,$2,$3
+	mflo	$3
+	addu	$2,$4,$3
+	sw	$2,16($fp)
+	lw	$2,16($fp)
+	move	$sp,$fp
+	lw	$fp,12($sp)
+	addiu	$sp,$sp,16
+	j	$31
+	nop
+
+	.end	main
+	.size	main, .-main

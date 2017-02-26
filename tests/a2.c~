@@ -1,0 +1,5 @@
+int f(int x){
+int i,j=1;
+for(i=0;i<x;i++) j*=2;
+return j;
+}
